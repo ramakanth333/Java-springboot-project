@@ -1,52 +1,55 @@
-version: "3"
+version: "3.8"
+
 services:
-  mydb:
-    container_name: mydb
-    image: mysql
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: frontend-app
     environment:
-      MYSQL_ROOT_PASSWORD: naresh
+      API_URL: ${API_URL}
+    ports:
+      - "${FRONTEND_PORT}:8501"
+    networks:
+      - appnet
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: backend-app
+    ports:
+      - "${BACKEND_PORT}:8084"
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+    networks:
+      - appnet
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    container_name: mysql
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - datastore
-
-  be-app:
-    container_name: be-app
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
-      args:
-        TAG: compose-v1
-    environment:
-      MYSQL_HOST: "jdbc:mysql://mydb:3306/datastore?createDatabaseIfNotExist=true"
-      MYSQL_USERNAME: root
-      MYSQL_PASSWORD: naresh
-    links:
-      - mydb
-    depends_on:
-      mydb:
-        condition: service_healthy
-    networks:
-      - datastore
-
-  fe-app:
-    container_name: fe-app
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
-    environment:
-      API_URL: http://be-app:8084
     ports:
-      - "8787:8080"
-    depends_on:
-      - be-app
+      - "3306:3306"
     networks:
-      - datastore
-    restart: unless-stopped
+      - appnet
 
 networks:
-  datastore:
+  appnet:
     driver: bridge
