@@ -2,3 +2,5 @@ streamlit
 requests
 docker
 gdown
+pandas
+plotly
